@@ -4,7 +4,9 @@
 
 ## Releases
 
-There are no documented releases.
+Please see the [project releases](https://socketry.github.io/protocol-multipart/releases/index) for all releases.
+
+### v0.1.0
 
 ## Contributing
 
