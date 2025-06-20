@@ -19,14 +19,6 @@ module Protocol
 			# @parameter boundary [String] The boundary string used to separate parts.
 			def call(writable, boundary = nil)
 			end
-			
-			private
-			
-			# Escape field names according to RFC 7578 and RFC 2046
-			# Quotes and backslashes need to be escaped with backslashes
-			def escape_field_name(name)
-				name.to_s.gsub(/([\\"])/, '\\\\\1')
-			end
 		end
 	end
 end
