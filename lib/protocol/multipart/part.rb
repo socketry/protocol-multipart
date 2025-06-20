@@ -7,10 +7,16 @@ module Protocol
 	module Multipart
 		# Represents a part in a multipart message.
 		class Part
+			# Initialize a new part with the given headers.
+			#
+			# @parameter headers [Hash] The headers for this part.
+			# @returns [void]
 			def initialize(headers = {})
 				@headers = headers
 			end
 			
+			# The headers associated with this part.
+			# @attribute [Hash] The headers as name/value pairs.
 			attr_accessor :headers
 			
 			# Writes the part to the writable body.

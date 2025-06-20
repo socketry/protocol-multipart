@@ -9,11 +9,21 @@ require_relative "boundary"
 module Protocol
 	module Multipart
 		# Represents a multipart/mixed message.
+		# A composite part that contains multiple nested parts with a boundary separator.
 		class Mixed < Part
+			# Returns the MIME type for mixed multipart data.
+			#
+			# @returns [String] The MIME type "multipart/mixed".
 			def self.mime_type
 				"multipart/mixed"
 			end
 			
+			# Initialize a new multipart/mixed container.
+			#
+			# @parameter headers [Hash] Headers for the multipart container.
+			# @parameter parts [Array] The parts to include in this multipart container.
+			# @parameter boundary [String] The boundary string to use for separating parts.
+			# @parameter mime_type [String] The MIME type to use for this container.
 			def initialize(headers = {}, parts = [], boundary: Multipart.secure_boundary, mime_type: self.class.mime_type)
 				super(headers)
 				
@@ -36,6 +46,12 @@ module Protocol
 				writable.write("\r\n")
 			end
 			
+			# Writes the multipart container and all its parts to the writable stream.
+			# This method serializes the multipart container, including all nested parts,
+			# with appropriate boundaries between them.
+			#
+			# @parameter writable [IO] The writable stream to write the multipart data to.
+			# @parameter boundary [String | Nil] The parent boundary string, if this is a nested multipart.
 			def call(writable, boundary = nil)
 				return if @parts.empty?
 				

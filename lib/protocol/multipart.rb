@@ -8,7 +8,9 @@ require_relative "multipart/parser"
 require_relative "multipart/body"
 require_relative "multipart/part"
 
+# @namespace
 module Protocol
+	# @namespace
 	module Multipart
 	end
 end
