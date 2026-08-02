@@ -219,12 +219,10 @@ module Protocol
 					
 					if part.read_empty_boundary?
 					else
-						begin
-							yield part
-						ensure
-							# After yielding, ensure the part is finished to advance to the next boundary. This is either a no-op if user already read the part, or reads remaining data.
-							part.discard
-						end
+						yield part
+						
+						# Advance to the next boundary after the consumer returns normally. If the consumer raises, stop parsing without draining the request body.
+						part.discard
 					end
 					
 					# Check if this was the last part:

@@ -157,6 +157,21 @@ describe Protocol::Multipart::Parser do
 		# No error means success
 	end
 	
+	it "does not drain a part when the consumer raises" do
+		data = "--#{boundary}\r\nContent-Type: text/plain\r\n\r\nSome content\r\n--#{boundary}--\r\n"
+		parser = Protocol::Multipart::Parser.new(StringIO.new(data), boundary)
+		part = nil
+		
+		expect do
+			parser.each do |current|
+				part = current
+				raise "Stop parsing!"
+			end
+		end.to raise_exception(RuntimeError, message: be == "Stop parsing!")
+		
+		expect(part).not.to be(:ended?)
+	end
+	
 	it "finishes part without collecting all data" do
 		data = "--#{boundary}\r\nContent-Type: text/plain\r\n\r\nPartial read content\r\n--#{boundary}--\r\n"
 		readable = StringIO.new(data)
