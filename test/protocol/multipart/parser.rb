@@ -258,8 +258,24 @@ describe Protocol::Multipart::Parser do
 		end.to raise_exception(EOFError, message: be =~ /No multipart boundary found in stream/)
 	end
 	
-	describe "whitespace folding in headers" do
-		it "handles simple header continuation with space" do
+	describe "part headers" do
+		it "preserves repeated extension headers" do
+			data = <<~MULTIPART
+				--#{boundary}\r
+				X-Custom: first\r
+				X-Custom: second\r
+				\r
+				Test content\r
+				--#{boundary}--\r
+			MULTIPART
+			
+			readable = StringIO.new(data)
+			parser = Protocol::Multipart::Parser.new(readable, boundary)
+			
+			expect(parser.each.first.headers["x-custom"]).to be == ["first", "second"]
+		end
+		
+		it "rejects folded headers" do
 			data = <<~MULTIPART
 				--#{boundary}\r
 				Content-Type: text/plain;\r
@@ -272,67 +288,15 @@ describe Protocol::Multipart::Parser do
 			readable = StringIO.new(data)
 			parser = Protocol::Multipart::Parser.new(readable, boundary)
 			
-			part = parser.each.first
-			expect(part.headers["content-type"]).to be == "text/plain; charset=utf-8"
+			expect do
+				parser.each.first
+			end.to raise_exception(RuntimeError, message: be =~ /Invalid header line/)
 		end
 		
-		it "handles header continuation with tab" do
+		it "rejects whitespace before the colon" do
 			data = <<~MULTIPART
 				--#{boundary}\r
-				Content-Disposition: form-data;\r
-				\tname="field"\r
-				\r
-				Test content\r
-				--#{boundary}--\r
-			MULTIPART
-			
-			readable = StringIO.new(data)
-			parser = Protocol::Multipart::Parser.new(readable, boundary)
-			
-			part = parser.each.first
-			expect(part.headers["content-disposition"]).to be == 'form-data; name="field"'
-		end
-		
-		it "handles multiple line continuations" do
-			data = <<~MULTIPART
-				--#{boundary}\r
-				Content-Type: multipart/alternative;\r
-				 boundary=inner;\r
-				 charset=utf-8\r
-				\r
-				Test content\r
-				--#{boundary}--\r
-			MULTIPART
-			
-			readable = StringIO.new(data)
-			parser = Protocol::Multipart::Parser.new(readable, boundary)
-			
-			part = parser.each.first
-			expect(part.headers["content-type"]).to be == "multipart/alternative; boundary=inner; charset=utf-8"
-		end
-		
-		it "handles mixed space and tab continuations" do
-			data = <<~MULTIPART
-				--#{boundary}\r
-				Content-Disposition: attachment;\r
-				 filename="long\r
-				\tfilename.txt"\r
-				\r
-				Test content\r
-				--#{boundary}--\r
-			MULTIPART
-			
-			readable = StringIO.new(data)
-			parser = Protocol::Multipart::Parser.new(readable, boundary)
-			
-			part = parser.each.first
-			expect(part.headers["content-disposition"]).to be == 'attachment; filename="long filename.txt"'
-		end
-		
-		it "rejects whitespace continuation without preceding header" do
-			data = <<~MULTIPART
-				--#{boundary}\r
-				 invalid-continuation\r
+				Content-Type : text/plain\r
 				\r
 				Test content\r
 				--#{boundary}--\r
@@ -343,28 +307,17 @@ describe Protocol::Multipart::Parser do
 			
 			expect do
 				parser.each.first
-			end.to raise_exception(RuntimeError, message: be =~ /Unexpected whitespace before header name/)
+			end.to raise_exception(RuntimeError, message: be =~ /Invalid header line/)
 		end
 		
-		it "handles whitespace folding with duplicate headers" do
-			data = <<~MULTIPART
-				--#{boundary}\r
-				X-Custom: first\r
-				 value\r
-				X-Custom: second\r
-				 value\r
-				\r
-				Test content\r
-				--#{boundary}--\r
-			MULTIPART
-			
+		it "rejects control characters in header values" do
+			data = "--#{boundary}\r\nX-Custom: first\0second\r\n\r\nTest content\r\n--#{boundary}--\r\n"
 			readable = StringIO.new(data)
 			parser = Protocol::Multipart::Parser.new(readable, boundary)
 			
-			part = parser.each.first
-			custom_headers = part.headers["x-custom"]
-			expect(custom_headers).to be_a(Array)
-			expect(custom_headers).to be == ["first value", "second value"]
+			expect do
+				parser.each.first
+			end.to raise_exception(RuntimeError, message: be =~ /Invalid header line/)
 		end
 		
 		it "handles normal headers without folding" do

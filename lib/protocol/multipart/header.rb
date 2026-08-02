@@ -8,8 +8,8 @@ module Protocol
 		# A parameterized header value, such as Content-Type or Content-Disposition.
 		class Header
 			TOKEN = "[!#$%&'*+\\-.^_`|~0-9A-Za-z]+"
-			VALUE_PATTERN = /\A\s*(#{TOKEN}(?:\/#{TOKEN})?)\s*/.freeze
-			PARAMETER_PATTERN = /\G;\s*(#{TOKEN})\s*=\s*(?:"((?:\\[^\r\n]|[^"\\\r\n])*)"|(#{TOKEN}))\s*/.freeze
+			VALUE_PATTERN = /\A[ \t]*(#{TOKEN}(?:\/#{TOKEN})?)[ \t]*/.freeze
+			PARAMETER_PATTERN = /\G;[ \t]*(#{TOKEN})[ \t]*=[ \t]*(?:"((?:\\[^\x00-\x1f\x7f]|[^"\\\x00-\x1f\x7f])*)"|(#{TOKEN}))[ \t]*/.freeze
 			
 			# Parse a parameterized header value.
 			# @parameter string [String] The header value.
@@ -24,7 +24,7 @@ module Protocol
 				parameters = {}
 				offset = match.end(0)
 				
-				while offset < string.bytesize
+				while offset < string.length
 					unless match = PARAMETER_PATTERN.match(string, offset)
 						raise ArgumentError, "Invalid header parameter at offset #{offset}: #{string.inspect}!"
 					end

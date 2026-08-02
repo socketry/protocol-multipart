@@ -29,6 +29,20 @@ describe Protocol::Multipart::Header do
 		expect(header["CHARSET"]).to be == "UTF-8"
 	end
 	
+	it "parses non-ASCII quoted parameters" do
+		filename = "caf\u00e9.txt"
+		header = subject.parse(%(form-data; filename="#{filename}"))
+		
+		expect(header["filename"]).to be == filename
+	end
+	
+	it "parses escape-heavy quoted parameters" do
+		quoted = 'a\\"' * 4096
+		header = subject.parse(%(form-data; filename="#{quoted}"))
+		
+		expect(header["filename"]).to be == ('a"' * 4096)
+	end
+	
 	it "rejects malformed parameters" do
 		expect{subject.parse("text/plain; charset")}.to raise_exception(ArgumentError, message: be =~ /Invalid header parameter/)
 	end
@@ -43,6 +57,14 @@ describe Protocol::Multipart::Header do
 	
 	it "rejects unterminated quoted parameters" do
 		expect{subject.parse('form-data; name="field')}.to raise_exception(ArgumentError, message: be =~ /Invalid header parameter/)
+	end
+	
+	it "rejects folded parameters" do
+		expect{subject.parse("form-data;\r\n name=field")}.to raise_exception(ArgumentError, message: be =~ /Invalid header parameter/)
+	end
+	
+	it "rejects control characters in quoted parameters" do
+		expect{subject.parse("form-data; name=\"field\0name\"")}.to raise_exception(ArgumentError, message: be =~ /Invalid header parameter/)
 	end
 	
 	it "rejects duplicate parameters" do

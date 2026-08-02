@@ -2,6 +2,6 @@
 
 ## Unreleased
 
-  - Add `Protocol::Multipart::Header` for parsing parameterized header values and `Protocol::Multipart::Headers` for storing multipart header fields.
+  - Add strict `Protocol::Multipart::Header` parsing and `Protocol::Multipart::Headers` storage for multipart header fields.
 
 ## v0.1.0
