@@ -26,6 +26,20 @@ describe Protocol::Multipart::Parser do
 		expect(parts_data.first).to be(:include?, "Hello World")
 	end
 	
+	it "parses chunk-readable input" do
+		data = "--#{boundary}\r\nContent-Disposition: form-data; name=\"field\"\r\n\r\nHello World\r\n--#{boundary}--\r\n"
+		chunks = data.bytes.each_slice(7).map{|bytes| bytes.pack("C*")}
+		readable = Object.new
+		readable.define_singleton_method(:read){chunks.shift}
+		parser = Protocol::Multipart::Parser.new(readable, boundary)
+		
+		parts = parser.each.map do |part|
+			part.each.to_a.join
+		end
+		
+		expect(parts).to be == ["Hello World"]
+	end
+	
 	it "handles multiple parts" do
 		data = "--#{boundary}\r\nContent-Disposition: form-data; name=\"field1\"\r\n\r\nvalue1\r\n--#{boundary}\r\nContent-Disposition: form-data; name=\"field2\"\r\n\r\nvalue2\r\n--#{boundary}--\r\n"
 		readable = StringIO.new(data)

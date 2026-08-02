@@ -10,6 +10,61 @@ module Protocol
 		# A parser for multipart data based on RFC 2046 and RFC 2387.
 		# Parses multipart bodies and provides an enumerable interface to access the parts.
 		class Parser
+			# Adapts an object which returns successive chunks from `read` to the IO interface.
+			class ChunkedIO
+				# Initialize the adapter.
+				# @parameter readable [Object] The chunk-readable input.
+				def initialize(readable)
+					@readable = readable
+					@buffer = String.new.b
+					@closed = false
+				end
+				
+				# Read up to the requested number of bytes.
+				# @parameter size [Integer] The maximum number of bytes to read.
+				# @parameter output [String | Nil] An optional output buffer.
+				# @parameter exception [Boolean] Included for IO compatibility.
+				# @returns [String | Nil] The next bytes, or nil at the end of the input.
+				def read_nonblock(size, output = nil, exception: true)
+					if @buffer.empty?
+						if chunk = @readable.read
+							@buffer << chunk
+						else
+							return nil
+						end
+					end
+					
+					chunk = @buffer.slice!(0, size)
+					
+					if output
+						output.replace(chunk)
+						return output
+					else
+						return chunk
+					end
+				end
+				
+				# Whether the adapter is open for reading.
+				def readable?
+					!@closed
+				end
+				
+				# Whether the adapter is closed.
+				def closed?
+					@closed
+				end
+				
+				# Close the adapter and the underlying input when supported.
+				def close
+					return if @closed
+					
+					@closed = true
+					@readable.close if @readable.respond_to?(:close)
+				end
+			end
+			
+			private_constant :ChunkedIO
+			
 			# Represents a single part within a multipart message.
 			class Part
 				# Initialize a new part with a readable stream, headers, and a boundary string.
@@ -145,9 +200,13 @@ module Protocol
 			
 			# Initialize a new multipart parser.
 			#
-			# @parameter readable [IO, IO::Stream] The readable stream containing multipart data.
+			# @parameter readable [IO, IO::Stream, Object] The readable stream or chunk-readable object containing multipart data.
 			# @parameter boundary [String] The boundary string that separates the parts.
 			def initialize(readable, boundary)
+				unless readable.respond_to?(:read_nonblock)
+					readable = ChunkedIO.new(readable)
+				end
+				
 				@readable = IO::Stream(readable)
 				@boundary = boundary
 				
