@@ -14,6 +14,18 @@ module Protocol
 			HEADER_PATTERN = /\A([!-9;-~]+):[ \t]*([^\x00-\x08\x0a-\x1f\x7f]*)\z/.freeze
 			private_constant :HEADER_PATTERN
 			
+			# The default maximum number of preamble bytes before the first boundary.
+			MAXIMUM_PREAMBLE_SIZE = 64 * 1024
+			
+			# The default maximum number of header bytes in each part.
+			MAXIMUM_HEADER_SIZE = 64 * 1024
+			
+			# The default maximum number of headers in each part.
+			MAXIMUM_HEADER_COUNT = 64
+			
+			# The default maximum number of parts.
+			MAXIMUM_PART_COUNT = 128
+			
 			# Represents a single part within a multipart message.
 			class Part
 				# Initialize a new part with a readable stream, headers, and a boundary string.
@@ -151,9 +163,23 @@ module Protocol
 			#
 			# @parameter readable [IO, IO::Stream] The readable stream containing multipart data.
 			# @parameter boundary [String] The boundary string that separates the parts.
-			def initialize(readable, boundary)
+			# @parameter maximum_preamble_size [Integer | Nil] The maximum preamble size, or nil for no limit.
+			# @parameter maximum_header_size [Integer | Nil] The maximum header size per part, or nil for no limit.
+			# @parameter maximum_header_count [Integer | Nil] The maximum header count per part, or nil for no limit.
+			# @parameter maximum_part_count [Integer | Nil] The maximum part count, or nil for no limit.
+			def initialize(readable, boundary, maximum_preamble_size: MAXIMUM_PREAMBLE_SIZE, maximum_header_size: MAXIMUM_HEADER_SIZE, maximum_header_count: MAXIMUM_HEADER_COUNT, maximum_part_count: MAXIMUM_PART_COUNT)
+				limits = [maximum_preamble_size, maximum_header_size, maximum_header_count, maximum_part_count]
+				
+				if limits.any?{|limit| limit and limit < 0}
+					raise ArgumentError, "Multipart limits must be non-negative!"
+				end
+				
 				@readable = IO::Stream(readable)
 				@boundary = boundary
+				@maximum_preamble_size = maximum_preamble_size
+				@maximum_header_size = maximum_header_size
+				@maximum_header_count = maximum_header_count
+				@maximum_part_count = maximum_part_count
 				
 				@boundary_marker = "--#{@boundary}\r\n".freeze
 			end
@@ -165,11 +191,16 @@ module Protocol
 			def each
 				return to_enum unless block_given?
 				
+				preamble_size = 0
+				
 				# Read lines until we find the first boundary:
 				while true
-					if line = @readable.gets("\r\n", chomp: false)
+					if line = read_line(preamble_size, @maximum_preamble_size, allowance: @boundary_marker.bytesize, chomp: false)
 						if line == @boundary_marker
 							break
+						else
+							preamble_size += line.bytesize
+							check_limit(:preamble_size, preamble_size, @maximum_preamble_size)
 						end
 					else
 						# End of stream reached without finding boundary:
@@ -177,7 +208,12 @@ module Protocol
 					end
 				end
 				
+				part_count = 0
+				
 				while true
+					part_count += 1
+					check_limit(:part_count, part_count, @maximum_part_count)
+					
 					part = read_part
 					break unless part
 					
@@ -200,15 +236,40 @@ module Protocol
 			
 			private
 			
+			def read_line(size, maximum, allowance: 0, chomp:)
+				if maximum
+					limit = maximum - size + allowance + 1
+					return @readable.gets("\r\n", limit, chomp: chomp)
+				else
+					return @readable.gets("\r\n", chomp: chomp)
+				end
+			end
+			
+			def check_limit(name, value, maximum)
+				if maximum and value > maximum
+					raise RangeError, "Multipart #{name} exceeded limit of #{maximum}!"
+				end
+			end
+			
 			def read_part
 				fields = []
+				header_size = 0
+				header_count = 0
 				
 				# Read headers until empty line
-				while line = @readable.gets("\r\n", chomp: true)
+				while line = read_line(header_size, @maximum_header_size, allowance: 2, chomp: true)
 					if line.empty?
 						break # End of headers
-					elsif match = line.match(HEADER_PATTERN)
+					end
+					
+					header_size += line.bytesize + 2
+					check_limit(:header_size, header_size, @maximum_header_size)
+					
+					if match = line.match(HEADER_PATTERN)
 						# Parse header line (name: value)
+						header_count += 1
+						check_limit(:header_count, header_count, @maximum_header_count)
+						
 						fields << [match[1], match[2].strip]
 					else
 						raise RuntimeError, "Invalid header line: #{line.inspect}"

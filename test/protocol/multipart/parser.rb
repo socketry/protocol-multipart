@@ -52,6 +52,74 @@ describe Protocol::Multipart::Parser do
 		expect(second_part[:content]).to be(:include?, "value2")
 	end
 	
+	it "limits the preamble size" do
+		data = "preamble\r\n--#{boundary}\r\n\r\n--#{boundary}--\r\n"
+		parser = Protocol::Multipart::Parser.new(StringIO.new(data), boundary, maximum_preamble_size: 4)
+		
+		expect{parser.each.to_a}.to raise_exception(RangeError, message: be =~ /preamble_size exceeded/)
+	end
+	
+	it "limits an unterminated preamble" do
+		parser = Protocol::Multipart::Parser.new(StringIO.new("x" * 1024), boundary, maximum_preamble_size: 16)
+		
+		expect{parser.each.to_a}.to raise_exception(RangeError, message: be =~ /preamble_size exceeded/)
+	end
+	
+	it "allows a boundary after the maximum preamble size" do
+		data = "x\r\n--#{boundary}\r\n\r\n--#{boundary}--\r\n"
+		parser = Protocol::Multipart::Parser.new(StringIO.new(data), boundary, maximum_preamble_size: 3)
+		
+		expect(parser.each.to_a).to be(:empty?)
+	end
+	
+	it "limits each part's header size" do
+		data = "--#{boundary}\r\nContent-Type: text/plain\r\n\r\nvalue\r\n--#{boundary}--\r\n"
+		parser = Protocol::Multipart::Parser.new(StringIO.new(data), boundary, maximum_header_size: 16)
+		
+		expect{parser.each.to_a}.to raise_exception(RangeError, message: be =~ /header_size exceeded/)
+	end
+	
+	it "limits an unterminated header" do
+		data = "--#{boundary}\r\nX-Test: #{'x' * 1024}"
+		parser = Protocol::Multipart::Parser.new(StringIO.new(data), boundary, maximum_header_size: 16)
+		
+		expect{parser.each.to_a}.to raise_exception(RangeError, message: be =~ /header_size exceeded/)
+	end
+	
+	it "allows the header terminator after the maximum header size" do
+		data = "--#{boundary}\r\nX: y\r\n\r\nvalue\r\n--#{boundary}--\r\n"
+		parser = Protocol::Multipart::Parser.new(StringIO.new(data), boundary, maximum_header_size: 6)
+		
+		expect(parser.each.to_a.size).to be == 1
+	end
+	
+	it "limits each part's header count" do
+		data = "--#{boundary}\r\nContent-Type: text/plain\r\nX-Test: true\r\n\r\nvalue\r\n--#{boundary}--\r\n"
+		parser = Protocol::Multipart::Parser.new(StringIO.new(data), boundary, maximum_header_count: 1)
+		
+		expect{parser.each.to_a}.to raise_exception(RangeError, message: be =~ /header_count exceeded/)
+	end
+	
+	it "limits the part count" do
+		data = "--#{boundary}\r\n\r\none\r\n--#{boundary}\r\n\r\ntwo\r\n--#{boundary}--\r\n"
+		parser = Protocol::Multipart::Parser.new(StringIO.new(data), boundary, maximum_part_count: 1)
+		
+		expect{parser.each.to_a}.to raise_exception(RangeError, message: be =~ /part_count exceeded/)
+	end
+	
+	it "allows limits to be disabled" do
+		data = "preamble\r\n--#{boundary}\r\nContent-Type: text/plain\r\n\r\nvalue\r\n--#{boundary}--\r\n"
+		parser = Protocol::Multipart::Parser.new(StringIO.new(data), boundary, maximum_preamble_size: nil, maximum_header_size: nil, maximum_header_count: nil, maximum_part_count: nil)
+		
+		expect(parser.each.to_a.size).to be == 1
+	end
+	
+	it "rejects negative limits" do
+		expect do
+			Protocol::Multipart::Parser.new(StringIO.new, boundary, maximum_part_count: -1)
+		end.to raise_exception(ArgumentError, message: be =~ /must be non-negative/)
+	end
+	
 	it "skips empty parts" do
 		data = "--#{boundary}\r\n\r\n--#{boundary}--\r\n"
 		readable = StringIO.new(data)
