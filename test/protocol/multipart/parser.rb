@@ -8,6 +8,32 @@ require "stringio"
 
 describe Protocol::Multipart::Parser do
 	let(:boundary) {"ProtocolMultipartBoundary"}
+	let(:chunked_io_class) {Protocol::Multipart::Parser.const_get(:ChunkedIO, false)}
+	
+	it "adapts chunk-readable input" do
+		chunks = ["abcdef", nil]
+		closed = false
+		readable = Object.new
+		readable.define_singleton_method(:read) {chunks.shift}
+		readable.define_singleton_method(:close) {closed = true}
+		adapter = chunked_io_class.new(readable)
+		
+		expect(adapter).to be(:readable?)
+		expect(adapter).not.to be(:closed?)
+		expect(adapter.read_nonblock(3)).to be == "abc"
+		
+		output = String.new
+		expect(adapter.read_nonblock(3, output)).to be(:equal?, output)
+		expect(output).to be == "def"
+		expect(adapter.read_nonblock(3)).to be_nil
+		
+		adapter.close
+		expect(adapter).not.to be(:readable?)
+		expect(adapter).to be(:closed?)
+		expect(closed).to be == true
+		
+		adapter.close
+	end
 	
 	it "parses multipart data correctly" do
 		data = "--#{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"example.txt\"\r\n\r\nHello World\r\n--#{boundary}--\r\n"
