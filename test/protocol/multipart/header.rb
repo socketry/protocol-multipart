@@ -37,6 +37,10 @@ describe Protocol::Multipart::Header do
 		expect{subject.parse("text/plain/invalid")}.to raise_exception(ArgumentError, message: be =~ /Invalid header parameter/)
 	end
 	
+	it "rejects missing primary values" do
+		expect{subject.parse("")}.to raise_exception(ArgumentError, message: be =~ /Invalid header value/)
+	end
+	
 	it "rejects unterminated quoted parameters" do
 		expect{subject.parse('form-data; name="field')}.to raise_exception(ArgumentError, message: be =~ /Invalid header parameter/)
 	end
