@@ -4,6 +4,7 @@
 # Copyright, 2025, by Samuel Williams.
 
 require "io/stream"
+require_relative "headers"
 
 module Protocol
 	module Multipart
@@ -15,7 +16,7 @@ module Protocol
 				# Initialize a new part with a readable stream, headers, and a boundary string.
 				#
 				# @parameter readable [IO::Stream] The readable stream that contains the part's data.
-				# @parameter headers [Hash] The headers associated with this part.
+				# @parameter headers [Headers] The headers associated with this part.
 				# @parameter boundary [String] The boundary string used to separate parts.
 				def initialize(readable, headers, boundary)
 					@readable = readable
@@ -25,7 +26,7 @@ module Protocol
 					@is_closing = false
 				end
 				
-				# @attribute [Hash] The headers associated with this part.
+				# @attribute [Headers] The headers associated with this part.
 				attr_reader :headers
 				
 				# Iterate through the part content in chunks.
@@ -197,7 +198,7 @@ module Protocol
 			private
 			
 			def read_part
-				headers = {}
+				fields = []
 				value = nil
 				
 				# Read headers until empty line
@@ -210,20 +211,11 @@ module Protocol
 						else
 							raise RuntimeError, "Unexpected whitespace before header name: #{line.inspect}"
 						end
-					elsif match = line.match(/^([^:]+):\s*(.*)$/) 
+					elsif match = line.match(/^([^:]+):\s*(.*)$/)
 						# Parse header line (name: value)
-						name = match[1].strip.downcase
+						name = match[1].strip
 						value = match[2].strip
-						
-						if current = headers[name]
-							if current.is_a?(Array)
-								current << value
-							else
-								headers[name] = [current, value]
-							end
-						else
-							headers[name] = value
-						end
+						fields << [name, value]
 					else
 						raise RuntimeError, "Invalid header line: #{line.inspect}"
 					end
@@ -233,7 +225,7 @@ module Protocol
 					raise EOFError, "Unexpected end of stream while reading headers!"
 				end
 				
-				return Part.new(@readable, headers, @boundary)
+				return Part.new(@readable, Headers.new(fields), @boundary)
 			end
 		end
 	end

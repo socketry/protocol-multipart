@@ -16,6 +16,7 @@ describe Protocol::Multipart::Parser do
 		
 		parts_data = []
 		parser.each do |part|
+			expect(part.headers).to be_a(Protocol::Multipart::Headers)
 			expect(part.headers["content-disposition"]).to be == 'form-data; name="file"; filename="example.txt"'
 			content = String.new
 			part.each { |chunk| content << chunk }
@@ -138,22 +139,17 @@ describe Protocol::Multipart::Parser do
 		end
 	end
 	
-	it "handles duplicate headers" do
-		# Create data with duplicate Content-Type headers
+	it "rejects duplicate content type headers" do
 		data = "--#{boundary}\r\nContent-Type: text/plain\r\nContent-Type: text/html\r\n\r\nTest content\r\n--#{boundary}--\r\n"
 		readable = StringIO.new(data)
 		parser = Protocol::Multipart::Parser.new(readable, boundary)
 		
-		part = parser.each.first
-		
-		# Should handle duplicate headers by making an array
-		content_type = part.headers["content-type"]
-		expect(content_type).to be_a(Array)
-		expect(content_type).to be == ["text/plain", "text/html"]
+		expect do
+			parser.each.first.headers["content-type"]
+		end.to raise_exception(Protocol::HTTP::DuplicateHeaderError)
 	end
 	
-	it "handles triple duplicate headers" do
-		# Test the case where we add to an existing array (line 152)
+	it "rejects triple duplicate content type headers" do
 		data = <<~MULTIPART
 			--#{boundary}\r
 			Content-Type: text/plain\r
@@ -167,12 +163,9 @@ describe Protocol::Multipart::Parser do
 		readable = StringIO.new(data)
 		parser = Protocol::Multipart::Parser.new(readable, boundary)
 		
-		part = parser.each.first
-		
-		# Should handle triple headers by extending the array
-		content_type = part.headers["content-type"]
-		expect(content_type).to be_a(Array)
-		expect(content_type).to be == ["text/plain", "text/html", "application/json"]
+		expect do
+			parser.each.first.headers["content-type"]
+		end.to raise_exception(Protocol::HTTP::DuplicateHeaderError)
 	end
 	
 	it "handles unexpected end of stream during part reading" do

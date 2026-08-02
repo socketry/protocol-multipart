@@ -18,6 +18,10 @@ describe Protocol::Multipart do
 		expect(Protocol::Multipart::Header).to be_a(Class)
 	end
 	
+	it "has multipart headers" do
+		expect(Protocol::Multipart::Headers).to be_a(Class)
+	end
+	
 	it "has a mixed part class" do
 		expect(Protocol::Multipart::Mixed).to be_a(Class)
 	end
