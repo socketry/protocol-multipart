@@ -13,13 +13,15 @@ group :maintenance, optional: true do
 	
 	gem "utopia-project", "~> 0.18"
 	gem "bake-releases"
+	gem "decode"
 end
 
 group :test do
 	gem "covered"
 	gem "sus"
-	gem "decode"
 	gem "rubocop"
+	gem "rubocop-md"
+	gem "rubocop-socketry"
 	
 	gem "sus-fixtures-async"
 	
