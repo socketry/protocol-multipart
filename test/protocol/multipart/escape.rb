@@ -12,7 +12,7 @@ describe Protocol::Multipart::Escape do
 		end
 	end
 	
-	let(:instance) { test_class.new }
+	let(:instance) {test_class.new}
 	
 	describe "#escape_field_name" do
 		it "escapes quotes correctly" do

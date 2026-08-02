@@ -7,9 +7,9 @@ require "protocol/multipart/string_part"
 require "stringio"
 
 describe Protocol::Multipart::StringPart do
-	let(:headers) { {"content-type" => "text/plain"} }
-	let(:content) { "Hello, World!" }
-	let(:part) { Protocol::Multipart::StringPart.new(headers, content) }
+	let(:headers) {{"content-type" => "text/plain"}}
+	let(:content) {"Hello, World!"}
+	let(:part) {Protocol::Multipart::StringPart.new(headers, content)}
 	
 	it "initializes with headers and content" do
 		expect(part.headers).to be == headers

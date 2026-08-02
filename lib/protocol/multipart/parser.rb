@@ -4,18 +4,22 @@
 # Copyright, 2025, by Samuel Williams.
 
 require "io/stream"
+require_relative "headers"
 
 module Protocol
 	module Multipart
 		# A parser for multipart data based on RFC 2046 and RFC 2387.
 		# Parses multipart bodies and provides an enumerable interface to access the parts.
 		class Parser
+			HEADER_PATTERN = /\A([!-9;-~]+):[ \t]*([^\x00-\x08\x0a-\x1f\x7f]*)\z/.freeze
+			private_constant :HEADER_PATTERN
+			
 			# Represents a single part within a multipart message.
 			class Part
 				# Initialize a new part with a readable stream, headers, and a boundary string.
 				#
 				# @parameter readable [IO::Stream] The readable stream that contains the part's data.
-				# @parameter headers [Hash] The headers associated with this part.
+				# @parameter headers [Headers] The headers associated with this part.
 				# @parameter boundary [String] The boundary string used to separate parts.
 				def initialize(readable, headers, boundary)
 					@readable = readable
@@ -25,7 +29,7 @@ module Protocol
 					@is_closing = false
 				end
 				
-				# @attribute [Hash] The headers associated with this part.
+				# @attribute [Headers] The headers associated with this part.
 				attr_reader :headers
 				
 				# Iterate through the part content in chunks.
@@ -197,33 +201,15 @@ module Protocol
 			private
 			
 			def read_part
-				headers = {}
-				value = nil
+				fields = []
 				
 				# Read headers until empty line
 				while line = @readable.gets("\r\n", chomp: true)
 					if line.empty?
 						break # End of headers
-					elsif match = line.match(/^\s+([^:]+)$/)
-						if value
-							value << " " << match[1]
-						else
-							raise RuntimeError, "Unexpected whitespace before header name: #{line.inspect}"
-						end
-					elsif match = line.match(/^([^:]+):\s*(.*)$/) 
+					elsif match = line.match(HEADER_PATTERN)
 						# Parse header line (name: value)
-						name = match[1].strip.downcase
-						value = match[2].strip
-						
-						if current = headers[name]
-							if current.is_a?(Array)
-								current << value
-							else
-								headers[name] = [current, value]
-							end
-						else
-							headers[name] = value
-						end
+						fields << [match[1], match[2].strip]
 					else
 						raise RuntimeError, "Invalid header line: #{line.inspect}"
 					end
@@ -233,7 +219,7 @@ module Protocol
 					raise EOFError, "Unexpected end of stream while reading headers!"
 				end
 				
-				return Part.new(@readable, headers, @boundary)
+				return Part.new(@readable, Headers.new(fields), @boundary)
 			end
 		end
 	end
