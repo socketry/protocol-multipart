@@ -25,5 +25,5 @@ Gem::Specification.new do |spec|
 	spec.required_ruby_version = ">= 3.3"
 	
 	spec.add_dependency "io-stream", "~> 0.8"
-	spec.add_dependency "protocol-http", "~> 0.67"
+	spec.add_dependency "protocol-http", ">= 0.59", "< 1.0"
 end
