@@ -15,7 +15,8 @@ describe Protocol::Multipart do
 	end
 	
 	it "has a parameterized header" do
-		expect(Protocol::Multipart::Header).to be_a(Class)
+		expect(Protocol::Multipart::Header).to be_a(Module)
+		expect(Protocol::Multipart::Header::Parameterized).to be_a(Class)
 	end
 	
 	it "has multipart headers" do

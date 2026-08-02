@@ -8,7 +8,7 @@ require "protocol/multipart/string_part"
 require "stringio"
 
 describe Protocol::Multipart::Mixed do
-	let(:mixed) { subject.new({}, [], boundary: "TestBoundary123") }
+	let(:mixed) {subject.new({}, [], boundary: "TestBoundary123")}
 	
 	it "returns early when parts are empty" do
 		output = StringIO.new

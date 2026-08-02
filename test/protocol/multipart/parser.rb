@@ -17,9 +17,10 @@ describe Protocol::Multipart::Parser do
 		parts_data = []
 		parser.each do |part|
 			expect(part.headers).to be_a(Protocol::Multipart::Headers)
-			expect(part.headers["content-disposition"]).to be == 'form-data; name="file"; filename="example.txt"'
+			expect(part.headers["content-disposition"].type).to be == "form-data"
+			expect(part.headers["content-disposition"]["filename"]).to be == "example.txt"
 			content = String.new
-			part.each { |chunk| content << chunk }
+			part.each{|chunk| content << chunk}
 			parts_data << content
 		end
 		
@@ -36,18 +37,18 @@ describe Protocol::Multipart::Parser do
 		parser.each do |part|
 			# Store both headers and content for each part
 			part_content = String.new
-			part.each { |chunk| part_content << chunk }
+			part.each{|chunk| part_content << chunk}
 			parts_data << {headers: part.headers, content: part_content}
 		end
 		
 		expect(parts_data).to have_attributes(size: be == 2)
 		
 		first_part = parts_data.first
-		expect(first_part[:headers]["content-disposition"]).to be == 'form-data; name="field1"'
+		expect(first_part[:headers]["content-disposition"]["name"]).to be == "field1"
 		expect(first_part[:content]).to be(:include?, "value1")
 		
 		second_part = parts_data.last
-		expect(second_part[:headers]["content-disposition"]).to be == 'form-data; name="field2"'
+		expect(second_part[:headers]["content-disposition"]["name"]).to be == "field2"
 		expect(second_part[:content]).to be(:include?, "value2")
 	end
 	
@@ -68,7 +69,7 @@ describe Protocol::Multipart::Parser do
 		chunks = []
 		parser.each do |part|
 			# Use a much smaller chunk size to ensure multiple chunks
-			part.each(10) { |chunk| chunks << chunk }
+			part.each(10){|chunk| chunks << chunk}
 		end
 		
 		expect(chunks.length).to be > 1
@@ -113,10 +114,10 @@ describe Protocol::Multipart::Parser do
 		data = "--#{boundary}\r\nContent-Type: text/plain\r\n\r\nTest content\r\n--#{boundary}--\r\n"
 		readable = StringIO.new(data)
 		parser = Protocol::Multipart::Parser.new(readable, boundary)
-
+		
 		content = String.new
 		parser.each do |part|
-			expect(part.headers["content-type"]).to be == "text/plain"
+			expect(part.headers["content-type"].type).to be == "text/plain"
 			part.each{|chunk| content << chunk}
 		end
 		
@@ -182,7 +183,7 @@ describe Protocol::Multipart::Parser do
 		
 		expect do
 			parser.each do |part|
-				part.each { |chunk| } # Try to read all content
+				part.each{|chunk|} # Try to read all content
 			end
 		end.to raise_exception(EOFError)
 	end
@@ -240,7 +241,7 @@ describe Protocol::Multipart::Parser do
 		# This should raise an error due to stream ending without proper boundary
 		expect do
 			parser.each do |part|
-				part.each { |chunk| } # Try to read content - should hit EOF
+				part.each{|chunk|} # Try to read content - should hit EOF
 			end
 		end.to raise_exception(EOFError)
 	end
@@ -334,7 +335,7 @@ describe Protocol::Multipart::Parser do
 			parser = Protocol::Multipart::Parser.new(readable, boundary)
 			
 			part = parser.each.first
-			expect(part.headers["content-type"]).to be == "text/plain"
+			expect(part.headers["content-type"].type).to be == "text/plain"
 			expect(part.headers["content-length"]).to be == "12"
 		end
 	end

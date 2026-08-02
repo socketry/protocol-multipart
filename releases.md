@@ -2,6 +2,6 @@
 
 ## Unreleased
 
-  - Add strict `Protocol::Multipart::Header` parsing and `Protocol::Multipart::Headers` storage for multipart header fields.
+  - Add strict, policy-driven parsing for parameterized `Content-Type` and `Content-Disposition` fields using `Protocol::Multipart::Headers`.
 
 ## v0.1.0
