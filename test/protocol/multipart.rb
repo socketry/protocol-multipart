@@ -14,6 +14,10 @@ describe Protocol::Multipart do
 		expect(Protocol::Multipart::Parser).to be_a(Class)
 	end
 	
+	it "has a parameterized header" do
+		expect(Protocol::Multipart::Header).to be_a(Class)
+	end
+	
 	it "has a mixed part class" do
 		expect(Protocol::Multipart::Mixed).to be_a(Class)
 	end
