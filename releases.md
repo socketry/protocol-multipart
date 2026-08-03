@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.3.0
 
   - Add a configurable `Protocol::Multipart::FormData::Parser` which parses a streaming body and explicit boundary into nested arguments.
   - Use `Protocol::URL::FormData::Nested` so URL-encoded and multipart forms share hierarchy semantics.
