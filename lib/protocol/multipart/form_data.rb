@@ -78,50 +78,6 @@ module Protocol
 				end
 			end
 			
-			# Parse multipart form data.
-			#
-			# Fields are yielded as strings. File uploads are yielded as streaming {Upload} instances and are only readable during the corresponding block invocation.
-			#
-			# @parameter readable [IO, IO::Stream] The readable stream containing multipart form data.
-			# @parameter boundary [String] The multipart boundary.
-			# @parameter maximum_field_size [Integer | Nil] The maximum size of each buffered field.
-			# @parameter maximum_upload_size [Integer | Nil] The maximum size of each file upload.
-			# @parameter maximum_total_size [Integer | Nil] The maximum combined size of all fields and uploads.
-			# @yields {|name, value| ...} Each form field name and its string or streaming upload value.
-			def self.parse(readable, boundary, maximum_field_size: MAXIMUM_FIELD_SIZE, maximum_upload_size: MAXIMUM_UPLOAD_SIZE, maximum_total_size: MAXIMUM_TOTAL_SIZE, **options)
-				unless block_given?
-					return enum_for(__method__, readable, boundary, maximum_field_size: maximum_field_size, maximum_upload_size: maximum_upload_size, maximum_total_size: maximum_total_size, **options)
-				end
-				
-				total_limit = ByteLimit.new(maximum_total_size, name: :total_size)
-				parser = Parser.new(readable, boundary, **options)
-				
-				parser.each do |part|
-					disposition = part.headers["content-disposition"]
-					
-					unless disposition&.type == "form-data" and name = disposition["name"]
-						raise ArgumentError, "Multipart form part is missing a form-data name!"
-					end
-					
-					if filename = disposition["filename"]
-						upload = Upload.new(part, filename, maximum_upload_size, total_limit)
-						yield name, upload
-						upload.discard
-					else
-						field_limit = ByteLimit.new(maximum_field_size, name: :field_size)
-						value = String.new.b
-						
-						part.each do |chunk|
-							field_limit.consume(chunk.bytesize)
-							total_limit.consume(chunk.bytesize)
-							value << chunk
-						end
-						
-						yield name, value
-					end
-				end
-			end
-			
 			# Returns the MIME type for form data.
 			#
 			# @returns [String] The MIME type "multipart/form-data".
@@ -147,3 +103,5 @@ module Protocol
 		end
 	end
 end
+
+require_relative "form_data/parser"
