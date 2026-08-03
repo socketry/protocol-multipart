@@ -80,30 +80,76 @@ describe Protocol::Multipart::FormData do
 			"Hello!"
 		)
 		
-		values = {}
-		result = subject.parse(StringIO.new(serialize(form_data)), form_data.boundary) do |name, value|
+		values = subject::Parser.new.parse(StringIO.new(serialize(form_data)), boundary: form_data.boundary) do |_name, value|
 			if value.is_a?(subject::Upload)
 				content = value.each.to_a.join
 				expect(value.filename).to be == "samuel.txt"
 				expect(value.headers["content-type"].type).to be == "text/plain"
 				expect(value.size).to be == 6
 				expect(value).to be(:ended?)
-				values[name] = content
+				content
 			else
-				values[name] = value
+				value
 			end
 		end
 		
-		expect(result).to be == true
 		expect(values).to be == {"name" => "Samuel", "avatar" => "Hello!"}
 	end
 	
-	it "returns an enumerator without a block" do
+	it "enumerates entries without a block" do
 		form_data.add_field("name", "Samuel")
-		enumerator = subject.parse(StringIO.new(serialize(form_data)), form_data.boundary)
+		enumerator = subject::Parser.new.each(StringIO.new(serialize(form_data)), boundary: form_data.boundary)
 		
 		expect(enumerator).to be_a(Enumerator)
 		expect(enumerator.to_a).to be == [["name", "Samuel"]]
+	end
+	
+	it "parses nested form data" do
+		form_data.add_field("user[name]", "Samuel")
+		form_data.add_field("user[roles][]", "admin")
+		form_data.add_field("user[roles][]", "editor")
+		
+		parameters = subject::Parser.new.parse(StringIO.new(serialize(form_data)), boundary: form_data.boundary)
+		
+		expect(parameters).to be == {
+			"user" => {"name" => "Samuel", "roles" => ["admin", "editor"]},
+		}
+	end
+	
+	it "parses form data into a supplied result" do
+		form_data.add_field("name", "Samuel")
+		result = Struct.new(:pairs) do
+			def add(name, value)
+				pairs << [name, value]
+			end
+			
+			def to_h
+				return pairs.to_h
+			end
+		end.new([])
+		
+		parameters = subject::Parser.new.parse(StringIO.new(serialize(form_data)), result, boundary: form_data.boundary)
+		
+		expect(parameters).to be == {"name" => "Samuel"}
+	end
+	
+	it "preserves empty field values" do
+		form_data.add_field("empty", "")
+		
+		parameters = subject::Parser.new.parse(StringIO.new(serialize(form_data)), boundary: form_data.boundary)
+		
+		expect(parameters).to be == {"empty" => ""}
+	end
+	
+	it "requires a block to consume uploads while parsing" do
+		form_data.parts << Protocol::Multipart::StringPart.new(
+			{"content-disposition" => 'form-data; name="file"; filename="data.bin"'},
+			"content"
+		)
+		
+		expect do
+			subject::Parser.new.parse(StringIO.new(serialize(form_data)), boundary: form_data.boundary)
+		end.to raise_exception(ArgumentError, message: be =~ /block is required/)
 	end
 	
 	it "discards unread upload content through the limited stream" do
@@ -113,7 +159,7 @@ describe Protocol::Multipart::FormData do
 		)
 		
 		upload = nil
-		subject.parse(StringIO.new(serialize(form_data)), form_data.boundary) do |_name, value|
+		subject::Parser.new.each(StringIO.new(serialize(form_data)), boundary: form_data.boundary) do |_name, value|
 			upload = value
 		end
 		
@@ -125,7 +171,7 @@ describe Protocol::Multipart::FormData do
 		form_data.add_field("field", "content")
 		
 		expect do
-			subject.parse(StringIO.new(serialize(form_data)), form_data.boundary, maximum_field_size: 3).to_a
+			subject::Parser.new(maximum_field_size: 3).each(StringIO.new(serialize(form_data)), boundary: form_data.boundary).to_a
 		end.to raise_exception(RangeError, message: be =~ /field_size exceeded/)
 	end
 	
@@ -136,7 +182,7 @@ describe Protocol::Multipart::FormData do
 		)
 		
 		expect do
-			subject.parse(StringIO.new(serialize(form_data)), form_data.boundary, maximum_upload_size: 3).to_a
+			subject::Parser.new(maximum_upload_size: 3).each(StringIO.new(serialize(form_data)), boundary: form_data.boundary).to_a
 		end.to raise_exception(RangeError, message: be =~ /upload_size exceeded/)
 	end
 	
@@ -145,35 +191,48 @@ describe Protocol::Multipart::FormData do
 		form_data.add_field("second", "two")
 		
 		expect do
-			subject.parse(StringIO.new(serialize(form_data)), form_data.boundary, maximum_total_size: 5).to_a
+			subject::Parser.new(maximum_total_size: 5).each(StringIO.new(serialize(form_data)), boundary: form_data.boundary).to_a
 		end.to raise_exception(RangeError, message: be =~ /total_size exceeded/)
 	end
 	
 	it "allows content limits to be disabled" do
 		form_data.add_field("field", "content")
 		
-		values = subject.parse(
-			StringIO.new(serialize(form_data)),
-			form_data.boundary,
+		parser = subject::Parser.new(
 			maximum_field_size: nil,
 			maximum_upload_size: nil,
 			maximum_total_size: nil,
-		).to_a
+		)
+		values = parser.each(StringIO.new(serialize(form_data)), boundary: form_data.boundary).to_a
 		
 		expect(values).to be == [["field", "content"]]
 	end
 	
 	it "rejects negative content limits" do
 		expect do
-			subject.parse(StringIO.new, "boundary", maximum_total_size: -1).to_a
+			subject::Parser.new(maximum_total_size: -1).each(StringIO.new, boundary: "boundary").to_a
 		end.to raise_exception(ArgumentError, message: be =~ /must be non-negative/)
+	end
+	
+	it "rejects a negative nesting limit" do
+		expect do
+			subject::Parser.new(maximum_depth: -1)
+		end.to raise_exception(ArgumentError, message: be =~ /must be non-negative/)
+	end
+	
+	it "limits nested form names" do
+		form_data.add_field("a[b][c]", "value")
+		
+		expect do
+			subject::Parser.new(maximum_depth: 2).parse(StringIO.new(serialize(form_data)), boundary: form_data.boundary)
+		end.to raise_exception(RangeError, message: be =~ /depth exceeded/)
 	end
 	
 	with "invalid form metadata" do
 		def parse_part(header)
 			boundary = "boundary"
 			data = "--#{boundary}\r\n#{header}\r\n\r\nvalue\r\n--#{boundary}--\r\n"
-			return Protocol::Multipart::FormData.parse(StringIO.new(data), boundary).to_a
+			return Protocol::Multipart::FormData::Parser.new.each(StringIO.new(data), boundary:).to_a
 		end
 		
 		it "rejects a missing content disposition" do
@@ -186,6 +245,15 @@ describe Protocol::Multipart::FormData do
 		
 		it "rejects a missing form field name" do
 			expect{parse_part("Content-Disposition: form-data")}.to raise_exception(ArgumentError, message: be =~ /missing a form-data name/)
+		end
+		
+		it "rejects an empty name when building nested form data" do
+			boundary = "boundary"
+			data = "--#{boundary}\r\nContent-Disposition: form-data; name=\"\"\r\n\r\nvalue\r\n--#{boundary}--\r\n"
+			
+			expect do
+				Protocol::Multipart::FormData::Parser.new.parse(StringIO.new(data), boundary:)
+			end.to raise_exception(ArgumentError, message: be =~ /Invalid form data name/)
 		end
 	end
 end
