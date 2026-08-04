@@ -6,6 +6,10 @@
 
 Please see the [project releases](https://socketry.github.io/protocol-multipart/releases/index) for all releases.
 
+### v0.4.0
+
+  - Use consistent limit naming for multipart parser constraints.
+
 ### v0.3.0
 
   - Add a configurable `Protocol::Multipart::FormData::Parser` which parses a streaming body and explicit boundary into nested arguments.

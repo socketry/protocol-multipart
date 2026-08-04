@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.4.0
 
   - Use consistent limit naming for multipart parser constraints.
 
