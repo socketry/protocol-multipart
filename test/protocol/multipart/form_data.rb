@@ -171,7 +171,7 @@ describe Protocol::Multipart::FormData do
 		form_data.add_field("field", "content")
 		
 		expect do
-			subject::Parser.new(maximum_field_size: 3).each(StringIO.new(serialize(form_data)), boundary: form_data.boundary).to_a
+			subject::Parser.new(field_size_limit: 3).each(StringIO.new(serialize(form_data)), boundary: form_data.boundary).to_a
 		end.to raise_exception(RangeError, message: be =~ /field_size exceeded/)
 	end
 	
@@ -182,7 +182,7 @@ describe Protocol::Multipart::FormData do
 		)
 		
 		expect do
-			subject::Parser.new(maximum_upload_size: 3).each(StringIO.new(serialize(form_data)), boundary: form_data.boundary).to_a
+			subject::Parser.new(upload_size_limit: 3).each(StringIO.new(serialize(form_data)), boundary: form_data.boundary).to_a
 		end.to raise_exception(RangeError, message: be =~ /upload_size exceeded/)
 	end
 	
@@ -191,7 +191,7 @@ describe Protocol::Multipart::FormData do
 		form_data.add_field("second", "two")
 		
 		expect do
-			subject::Parser.new(maximum_total_size: 5).each(StringIO.new(serialize(form_data)), boundary: form_data.boundary).to_a
+			subject::Parser.new(total_size_limit: 5).each(StringIO.new(serialize(form_data)), boundary: form_data.boundary).to_a
 		end.to raise_exception(RangeError, message: be =~ /total_size exceeded/)
 	end
 	
@@ -199,9 +199,9 @@ describe Protocol::Multipart::FormData do
 		form_data.add_field("field", "content")
 		
 		parser = subject::Parser.new(
-			maximum_field_size: nil,
-			maximum_upload_size: nil,
-			maximum_total_size: nil,
+			field_size_limit: nil,
+			upload_size_limit: nil,
+			total_size_limit: nil,
 		)
 		values = parser.each(StringIO.new(serialize(form_data)), boundary: form_data.boundary).to_a
 		
@@ -210,13 +210,13 @@ describe Protocol::Multipart::FormData do
 	
 	it "rejects negative content limits" do
 		expect do
-			subject::Parser.new(maximum_total_size: -1).each(StringIO.new, boundary: "boundary").to_a
+			subject::Parser.new(total_size_limit: -1).each(StringIO.new, boundary: "boundary").to_a
 		end.to raise_exception(ArgumentError, message: be =~ /must be non-negative/)
 	end
 	
 	it "rejects a negative nesting limit" do
 		expect do
-			subject::Parser.new(maximum_depth: -1)
+			subject::Parser.new(depth_limit: -1)
 		end.to raise_exception(ArgumentError, message: be =~ /must be non-negative/)
 	end
 	
@@ -224,7 +224,7 @@ describe Protocol::Multipart::FormData do
 		form_data.add_field("a[b][c]", "value")
 		
 		expect do
-			subject::Parser.new(maximum_depth: 2).parse(StringIO.new(serialize(form_data)), boundary: form_data.boundary)
+			subject::Parser.new(depth_limit: 2).parse(StringIO.new(serialize(form_data)), boundary: form_data.boundary)
 		end.to raise_exception(RangeError, message: be =~ /depth exceeded/)
 	end
 	

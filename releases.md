@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - Use consistent limit naming for multipart parser constraints.
+
 ## v0.3.0
 
   - Add a configurable `Protocol::Multipart::FormData::Parser` which parses a streaming body and explicit boundary into nested arguments.
