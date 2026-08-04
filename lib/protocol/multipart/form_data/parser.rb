@@ -15,20 +15,20 @@ module Protocol
 				CONTENT_TYPE = "multipart/form-data"
 				
 				# Initialize the form data parser.
-				# @parameter maximum_field_size [Integer | Nil] The maximum size of each buffered field.
-				# @parameter maximum_upload_size [Integer | Nil] The maximum size of each file upload.
-				# @parameter maximum_total_size [Integer | Nil] The maximum combined size of all fields and uploads.
-				# @parameter maximum_depth [Integer | Nil] The maximum depth of a bracketed form name.
+				# @parameter field_size_limit [Integer | Nil] The buffered field size limit.
+				# @parameter upload_size_limit [Integer | Nil] The file upload size limit.
+				# @parameter total_size_limit [Integer | Nil] The combined size limit for all fields and uploads.
+				# @parameter depth_limit [Integer | Nil] The bracketed form name depth limit.
 				# @parameter options [Hash] Limits passed to the underlying multipart parser.
-				def initialize(maximum_field_size: MAXIMUM_FIELD_SIZE, maximum_upload_size: MAXIMUM_UPLOAD_SIZE, maximum_total_size: MAXIMUM_TOTAL_SIZE, maximum_depth: Protocol::URL::FormData::Nested::MAXIMUM_DEPTH, **options)
-					if maximum_depth and maximum_depth < 0
+				def initialize(field_size_limit: FIELD_SIZE_LIMIT, upload_size_limit: UPLOAD_SIZE_LIMIT, total_size_limit: TOTAL_SIZE_LIMIT, depth_limit: Protocol::URL::FormData::Nested::DEPTH_LIMIT, **options)
+					if depth_limit and depth_limit < 0
 						raise ArgumentError, "Form data limits must be non-negative!"
 					end
 					
-					@maximum_field_size = maximum_field_size
-					@maximum_upload_size = maximum_upload_size
-					@maximum_total_size = maximum_total_size
-					@maximum_depth = maximum_depth
+					@field_size_limit = field_size_limit
+					@upload_size_limit = upload_size_limit
+					@total_size_limit = total_size_limit
+					@depth_limit = depth_limit
 					@options = options
 				end
 				
@@ -66,7 +66,7 @@ module Protocol
 				def each(readable, boundary:)
 					return to_enum(__method__, readable, boundary:) unless block_given?
 					
-					total_limit = ByteLimit.new(@maximum_total_size, name: :total_size)
+					total_size_limit = ByteLimit.new(@total_size_limit, name: :total_size)
 					parser = Multipart::Parser.new(readable, boundary, **@options)
 					
 					parser.each do |part|
@@ -77,16 +77,16 @@ module Protocol
 						end
 						
 						if filename = disposition["filename"]
-							upload = Upload.new(part, filename, @maximum_upload_size, total_limit)
+							upload = Upload.new(part, filename, @upload_size_limit, total_size_limit)
 							yield name, upload
 							upload.discard
 						else
-							field_limit = ByteLimit.new(@maximum_field_size, name: :field_size)
+							field_size_limit = ByteLimit.new(@field_size_limit, name: :field_size)
 							value = String.new.b
 							
 							part.each do |chunk|
-								field_limit.consume(chunk.bytesize)
-								total_limit.consume(chunk.bytesize)
+								field_size_limit.consume(chunk.bytesize)
+								total_size_limit.consume(chunk.bytesize)
 								value << chunk
 							end
 							
@@ -98,7 +98,7 @@ module Protocol
 				private
 				
 				def make_result
-					return Protocol::URL::FormData::Nested.new(maximum_depth: @maximum_depth)
+					return Protocol::URL::FormData::Nested.new(depth_limit: @depth_limit)
 				end
 			end
 		end

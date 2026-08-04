@@ -16,27 +16,27 @@ module Protocol
 		class FormData < Mixed
 			include Escape
 			
-			# The default maximum size of a buffered form field.
-			MAXIMUM_FIELD_SIZE = 2 * 1024 * 1024
+			# The buffered form field size limit.
+			FIELD_SIZE_LIMIT = 2 * 1024 * 1024
 			
-			# The default maximum size of a streamed file upload.
-			MAXIMUM_UPLOAD_SIZE = 128 * 1024 * 1024
+			# The streamed file upload size limit.
+			UPLOAD_SIZE_LIMIT = 128 * 1024 * 1024
 			
-			# The default maximum combined size of all form fields and file uploads.
-			MAXIMUM_TOTAL_SIZE = 256 * 1024 * 1024
+			# The combined size limit for all form fields and file uploads.
+			TOTAL_SIZE_LIMIT = 256 * 1024 * 1024
 			
 			# A file upload yielded while parsing form data.
 			class Upload
 				# Initialize a streamed file upload.
 				# @parameter part [Parser::Part] The underlying multipart part.
 				# @parameter filename [String] The submitted filename.
-				# @parameter maximum_size [Integer | Nil] The maximum upload size.
-				# @parameter total_limit [ByteLimit] The shared form-data size limit.
-				def initialize(part, filename, maximum_size, total_limit)
+				# @parameter size_limit [Integer | Nil] The upload size limit.
+				# @parameter total_size_limit [ByteLimit] The shared form-data size limit.
+				def initialize(part, filename, size_limit, total_size_limit)
 					@part = part
 					@filename = filename
-					@limit = ByteLimit.new(maximum_size, name: :upload_size)
-					@total_limit = total_limit
+					@size_limit = ByteLimit.new(size_limit, name: :upload_size)
+					@total_size_limit = total_size_limit
 				end
 				
 				# The submitted filename.
@@ -49,7 +49,7 @@ module Protocol
 				
 				# The number of upload bytes consumed so far.
 				def size
-					@limit.size
+					@size_limit.size
 				end
 				
 				# Whether the complete upload has been consumed.
@@ -63,8 +63,8 @@ module Protocol
 					return to_enum(:each, chunk_size) unless block_given?
 					
 					@part.each(chunk_size) do |chunk|
-						@limit.consume(chunk.bytesize)
-						@total_limit.consume(chunk.bytesize)
+						@size_limit.consume(chunk.bytesize)
+						@total_size_limit.consume(chunk.bytesize)
 						yield chunk
 					end
 					
