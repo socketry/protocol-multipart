@@ -15,6 +15,37 @@ describe Protocol::Multipart::FormData do
 		return output.string
 	end
 	
+	def parse_fields(fields, **options)
+		form_data = subject.new
+		fields.each do |name, value|
+			form_data.add_field(name, value)
+		end
+		
+		return subject::Parser.new(**options).parse(
+			StringIO.new(serialize(form_data)),
+			boundary: form_data.boundary,
+		)
+	end
+	
+	def parse_field(value, name: "field", **options)
+		return parse_fields({name => value}, **options)
+	end
+	
+	def parse_upload(value, **options)
+		form_data = subject.new
+		form_data.parts << Protocol::Multipart::StringPart.new(
+			{"content-disposition" => 'form-data; name="file"; filename="data.txt"'},
+			value,
+		)
+		
+		return subject::Parser.new(**options).parse(
+			StringIO.new(serialize(form_data)),
+			boundary: form_data.boundary,
+		) do |_name, upload|
+			upload.each.to_a.join
+		end
+	end
+	
 	it "handles field names with quotes correctly" do
 		form_data.add_field('field"with"quotes', "test value")
 		
@@ -167,15 +198,25 @@ describe Protocol::Multipart::FormData do
 		expect(upload).to be(:ended?)
 	end
 	
-	it "limits buffered field size" do
-		form_data.add_field("field", "content")
+	it "applies the field size limit at its boundary" do
+		expect(parse_field("123", field_size_limit: 4)).to be == {"field" => "123"}
+		expect(parse_field("1234", field_size_limit: 4)).to be == {"field" => "1234"}
 		
 		expect do
-			subject::Parser.new(field_size_limit: 3).each(StringIO.new(serialize(form_data)), boundary: form_data.boundary).to_a
-		end.to raise_exception(RangeError, message: be =~ /field_size exceeded/)
+			parse_field("12345", field_size_limit: 4)
+		end.to raise_exception(RangeError, message: be =~ /field_size exceeded limit of 4/)
 	end
 	
-	it "limits upload size even when the upload is not read by the consumer" do
+	it "applies the upload size limit at its boundary" do
+		expect(parse_upload("123", upload_size_limit: 4)).to be == {"file" => "123"}
+		expect(parse_upload("1234", upload_size_limit: 4)).to be == {"file" => "1234"}
+		
+		expect do
+			parse_upload("12345", upload_size_limit: 4)
+		end.to raise_exception(RangeError, message: be =~ /upload_size exceeded limit of 4/)
+	end
+	
+	it "applies the upload size limit while discarding unread content" do
 		form_data.parts << Protocol::Multipart::StringPart.new(
 			{"content-disposition" => 'form-data; name="file"; filename="large.bin"'},
 			"content"
@@ -186,13 +227,13 @@ describe Protocol::Multipart::FormData do
 		end.to raise_exception(RangeError, message: be =~ /upload_size exceeded/)
 	end
 	
-	it "limits total field and upload content" do
-		form_data.add_field("first", "one")
-		form_data.add_field("second", "two")
+	it "applies the total size limit at its boundary" do
+		expect(parse_fields({"first" => "1", "second" => "12"}, total_size_limit: 4)).to be == {"first" => "1", "second" => "12"}
+		expect(parse_fields({"first" => "12", "second" => "34"}, total_size_limit: 4)).to be == {"first" => "12", "second" => "34"}
 		
 		expect do
-			subject::Parser.new(total_size_limit: 5).each(StringIO.new(serialize(form_data)), boundary: form_data.boundary).to_a
-		end.to raise_exception(RangeError, message: be =~ /total_size exceeded/)
+			parse_fields({"first" => "12", "second" => "345"}, total_size_limit: 4)
+		end.to raise_exception(RangeError, message: be =~ /total_size exceeded limit of 4/)
 	end
 	
 	it "allows content limits to be disabled" do
@@ -220,12 +261,13 @@ describe Protocol::Multipart::FormData do
 		end.to raise_exception(ArgumentError, message: be =~ /must be non-negative/)
 	end
 	
-	it "limits nested form names" do
-		form_data.add_field("a[b][c]", "value")
+	it "applies the nesting depth limit at its boundary" do
+		expect(parse_field("1", name: "a", depth_limit: 2)).to be == {"a" => "1"}
+		expect(parse_field("1", name: "a[b]", depth_limit: 2)).to be == {"a" => {"b" => "1"}}
 		
 		expect do
-			subject::Parser.new(depth_limit: 2).parse(StringIO.new(serialize(form_data)), boundary: form_data.boundary)
-		end.to raise_exception(RangeError, message: be =~ /depth exceeded/)
+			parse_field("1", name: "a[b][c]", depth_limit: 2)
+		end.to raise_exception(RangeError, message: be =~ /depth exceeded limit of 2/)
 	end
 	
 	with "invalid form metadata" do
