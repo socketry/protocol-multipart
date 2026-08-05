@@ -16,7 +16,7 @@ describe Protocol::Multipart::ByteLimit do
 	it "raises when the maximum is exceeded" do
 		limit = subject.new(1, name: :field_size)
 		
-		expect{limit.consume(2)}.to raise_exception(RangeError, message: be =~ /field_size exceeded limit of 1/)
+		expect{limit.consume(2)}.to raise_exception(Protocol::Multipart::LimitError, message: be =~ /field_size exceeded limit of 1/)
 	end
 	
 	it "can be unlimited" do

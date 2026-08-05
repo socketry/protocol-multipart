@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - Add `Protocol::Multipart::LimitError` for configured processing limits.
+
 ## v0.4.0
 
   - Use consistent limit naming for multipart parser constraints.

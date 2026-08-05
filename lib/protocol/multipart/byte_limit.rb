@@ -3,6 +3,8 @@
 # Released under the MIT License.
 # Copyright, 2026, by Samuel Williams.
 
+require_relative "error"
+
 module Protocol
 	module Multipart
 		# Tracks consumed bytes against an optional maximum.
@@ -30,7 +32,7 @@ module Protocol
 				@size += size
 				
 				if @maximum and @size > @maximum
-					raise RangeError, "Multipart #{@name} exceeded limit of #{@maximum}!"
+					raise LimitError, "Multipart #{@name} exceeded limit of #{@maximum}!"
 				end
 				
 				return @size

@@ -204,7 +204,7 @@ describe Protocol::Multipart::FormData do
 		
 		expect do
 			parse_field("12345", field_size_limit: 4)
-		end.to raise_exception(RangeError, message: be =~ /field_size exceeded limit of 4/)
+		end.to raise_exception(Protocol::Multipart::LimitError, message: be =~ /field_size exceeded limit of 4/)
 	end
 	
 	it "applies the upload size limit at its boundary" do
@@ -213,7 +213,7 @@ describe Protocol::Multipart::FormData do
 		
 		expect do
 			parse_upload("12345", upload_size_limit: 4)
-		end.to raise_exception(RangeError, message: be =~ /upload_size exceeded limit of 4/)
+		end.to raise_exception(Protocol::Multipart::LimitError, message: be =~ /upload_size exceeded limit of 4/)
 	end
 	
 	it "applies the upload size limit while discarding unread content" do
@@ -224,7 +224,7 @@ describe Protocol::Multipart::FormData do
 		
 		expect do
 			subject::Parser.new(upload_size_limit: 3).each(StringIO.new(serialize(form_data)), boundary: form_data.boundary).to_a
-		end.to raise_exception(RangeError, message: be =~ /upload_size exceeded/)
+		end.to raise_exception(Protocol::Multipart::LimitError, message: be =~ /upload_size exceeded/)
 	end
 	
 	it "applies the total size limit at its boundary" do
@@ -233,7 +233,7 @@ describe Protocol::Multipart::FormData do
 		
 		expect do
 			parse_fields({"first" => "12", "second" => "345"}, total_size_limit: 4)
-		end.to raise_exception(RangeError, message: be =~ /total_size exceeded limit of 4/)
+		end.to raise_exception(Protocol::Multipart::LimitError, message: be =~ /total_size exceeded limit of 4/)
 	end
 	
 	it "allows content limits to be disabled" do
@@ -267,7 +267,7 @@ describe Protocol::Multipart::FormData do
 		
 		expect do
 			parse_field("1", name: "a[b][c]", depth_limit: 2)
-		end.to raise_exception(RangeError, message: be =~ /depth exceeded limit of 2/)
+		end.to raise_exception(Protocol::URL::LimitError, message: be =~ /depth exceeded limit of 2/)
 	end
 	
 	with "invalid form metadata" do

@@ -4,6 +4,7 @@
 # Copyright, 2025, by Samuel Williams.
 
 require "io/stream"
+require_relative "error"
 require_relative "headers"
 
 module Protocol
@@ -245,7 +246,7 @@ module Protocol
 			
 			def check_limit(name, value, limit)
 				if limit and value > limit
-					raise RangeError, "Multipart #{name} exceeded limit of #{limit}!"
+					raise LimitError, "Multipart #{name} exceeded limit of #{limit}!"
 				end
 			end
 			
