@@ -12,7 +12,7 @@ module Protocol
 		class FormData
 			# A configurable parser for `multipart/form-data` bodies.
 			class Parser
-				CONTENT_TYPE = "multipart/form-data"
+				MEDIA_TYPE = "multipart/form-data"
 				
 				# Initialize the form data parser.
 				# @parameter field_size_limit [Integer | Nil] The buffered field size limit.
