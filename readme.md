@@ -6,6 +6,10 @@
 
 Please see the [project releases](https://socketry.github.io/protocol-multipart/releases/index) for all releases.
 
+### v0.6.0
+
+  - Rename `Protocol::Multipart::FormData::Parser::CONTENT_TYPE` to `MEDIA_TYPE`.
+
 ### v0.5.0
 
   - Add `Protocol::Multipart::LimitError` for configured processing limits.

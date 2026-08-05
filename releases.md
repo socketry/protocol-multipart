@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.6.0
 
   - Rename `Protocol::Multipart::FormData::Parser::CONTENT_TYPE` to `MEDIA_TYPE`.
 
