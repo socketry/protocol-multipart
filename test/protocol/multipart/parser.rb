@@ -56,13 +56,13 @@ describe Protocol::Multipart::Parser do
 		data = "preamble\r\n--#{boundary}\r\n\r\n--#{boundary}--\r\n"
 		parser = Protocol::Multipart::Parser.new(StringIO.new(data), boundary, preamble_size_limit: 4)
 		
-		expect{parser.each.to_a}.to raise_exception(RangeError, message: be =~ /preamble_size exceeded/)
+		expect{parser.each.to_a}.to raise_exception(Protocol::Multipart::LimitError, message: be =~ /preamble_size exceeded/)
 	end
 	
 	it "limits an unterminated preamble" do
 		parser = Protocol::Multipart::Parser.new(StringIO.new("x" * 1024), boundary, preamble_size_limit: 16)
 		
-		expect{parser.each.to_a}.to raise_exception(RangeError, message: be =~ /preamble_size exceeded/)
+		expect{parser.each.to_a}.to raise_exception(Protocol::Multipart::LimitError, message: be =~ /preamble_size exceeded/)
 	end
 	
 	it "allows a boundary after the maximum preamble size" do
@@ -76,14 +76,14 @@ describe Protocol::Multipart::Parser do
 		data = "--#{boundary}\r\nContent-Type: text/plain\r\n\r\nvalue\r\n--#{boundary}--\r\n"
 		parser = Protocol::Multipart::Parser.new(StringIO.new(data), boundary, header_size_limit: 16)
 		
-		expect{parser.each.to_a}.to raise_exception(RangeError, message: be =~ /header_size exceeded/)
+		expect{parser.each.to_a}.to raise_exception(Protocol::Multipart::LimitError, message: be =~ /header_size exceeded/)
 	end
 	
 	it "limits an unterminated header" do
 		data = "--#{boundary}\r\nX-Test: #{'x' * 1024}"
 		parser = Protocol::Multipart::Parser.new(StringIO.new(data), boundary, header_size_limit: 16)
 		
-		expect{parser.each.to_a}.to raise_exception(RangeError, message: be =~ /header_size exceeded/)
+		expect{parser.each.to_a}.to raise_exception(Protocol::Multipart::LimitError, message: be =~ /header_size exceeded/)
 	end
 	
 	it "allows the header terminator after the maximum header size" do
@@ -97,14 +97,14 @@ describe Protocol::Multipart::Parser do
 		data = "--#{boundary}\r\nContent-Type: text/plain\r\nX-Test: true\r\n\r\nvalue\r\n--#{boundary}--\r\n"
 		parser = Protocol::Multipart::Parser.new(StringIO.new(data), boundary, header_count_limit: 1)
 		
-		expect{parser.each.to_a}.to raise_exception(RangeError, message: be =~ /header_count exceeded/)
+		expect{parser.each.to_a}.to raise_exception(Protocol::Multipart::LimitError, message: be =~ /header_count exceeded/)
 	end
 	
 	it "limits the part count" do
 		data = "--#{boundary}\r\n\r\none\r\n--#{boundary}\r\n\r\ntwo\r\n--#{boundary}--\r\n"
 		parser = Protocol::Multipart::Parser.new(StringIO.new(data), boundary, part_count_limit: 1)
 		
-		expect{parser.each.to_a}.to raise_exception(RangeError, message: be =~ /part_count exceeded/)
+		expect{parser.each.to_a}.to raise_exception(Protocol::Multipart::LimitError, message: be =~ /part_count exceeded/)
 	end
 	
 	it "allows limits to be disabled" do
