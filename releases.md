@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - Rename `Protocol::Multipart::FormData::Parser::CONTENT_TYPE` to `MEDIA_TYPE`.
+
 ## v0.5.0
 
   - Add `Protocol::Multipart::LimitError` for configured processing limits.
