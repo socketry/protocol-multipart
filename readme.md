@@ -6,6 +6,10 @@
 
 Please see the [project releases](https://socketry.github.io/protocol-multipart/releases/index) for all releases.
 
+### v0.5.0
+
+  - Add `Protocol::Multipart::LimitError` for configured processing limits.
+
 ### v0.4.0
 
   - Use consistent limit naming for multipart parser constraints.
