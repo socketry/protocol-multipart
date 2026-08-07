@@ -42,7 +42,9 @@ describe Protocol::Multipart::FormData do
 			StringIO.new(serialize(form_data)),
 			boundary: form_data.boundary,
 		) do |_name, upload|
-			upload.each.to_a.join
+			content = StringIO.new
+			upload.copy_to(content)
+			content.string
 		end
 	end
 	

@@ -6,6 +6,7 @@
 require "io/stream"
 require_relative "error"
 require_relative "headers"
+require_relative "readable"
 
 module Protocol
 	module Multipart
@@ -29,6 +30,8 @@ module Protocol
 			
 			# Represents a single part within a multipart message.
 			class Part
+				include Readable
+				
 				# Initialize a new part with a readable stream, headers, and a boundary string.
 				#
 				# @parameter readable [IO::Stream] The readable stream that contains the part's data.
