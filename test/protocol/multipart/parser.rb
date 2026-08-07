@@ -19,9 +19,9 @@ describe Protocol::Multipart::Parser do
 			expect(part.headers).to be_a(Protocol::Multipart::Headers)
 			expect(part.headers["content-disposition"].type).to be == "form-data"
 			expect(part.headers["content-disposition"]["filename"]).to be == "example.txt"
-			content = String.new
-			part.each{|chunk| content << chunk}
-			parts_data << content
+			content = StringIO.new
+			part.copy_to(content)
+			parts_data << content.string
 		end
 		
 		expect(parts_data.size).to be == 1

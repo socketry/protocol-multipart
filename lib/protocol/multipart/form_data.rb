@@ -8,6 +8,7 @@ require_relative "parser"
 require_relative "string_part"
 require_relative "escape"
 require_relative "byte_limit"
+require_relative "readable"
 
 module Protocol
 	module Multipart
@@ -27,6 +28,8 @@ module Protocol
 			
 			# A file upload yielded while parsing form data.
 			class Upload
+				include Readable
+				
 				# Initialize a streamed file upload.
 				# @parameter part [Parser::Part] The underlying multipart part.
 				# @parameter filename [String] The submitted filename.
