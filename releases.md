@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.7.0
 
   - Add `copy_to` and secure local `save` operations for readable multipart parts and form-data uploads.
 

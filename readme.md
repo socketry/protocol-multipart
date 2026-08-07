@@ -6,6 +6,10 @@
 
 Please see the [project releases](https://socketry.github.io/protocol-multipart/releases/index) for all releases.
 
+### v0.7.0
+
+  - Add `copy_to` and secure local `save` operations for readable multipart parts and form-data uploads.
+
 ### v0.6.0
 
   - Rename `Protocol::Multipart::FormData::Parser::CONTENT_TYPE` to `MEDIA_TYPE`.
